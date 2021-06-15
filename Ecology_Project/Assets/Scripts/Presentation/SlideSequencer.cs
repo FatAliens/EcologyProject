@@ -7,25 +7,36 @@ using DG.Tweening;
 
 public class SlideSequencer : MonoBehaviour
 {
+    [Serializable]
+    public class Slide
+    {
+        public GameObject canvas;
+        public GameObject model;
+        public float scale;
+    }
     [Tooltip("0 - first slide")] [SerializeField]
     private int startSlideIndex;
 
     [SerializeField] private bool isLoop;
 
-    private List<GameObject> slides = new List<GameObject>();
+    [SerializeField] public List<Slide> slides = new List<Slide>();
     private int currentPanelIndex;
 
     private void Start()
     {
-        int childCount = transform.childCount;
-        for (int i = 0; i < childCount; i++)
+        foreach (var slide in slides)
         {
-            slides.Add(transform.GetChild(i).gameObject);
+            slide.scale = slide.model.transform.localScale.x;
         }
-
+        
         currentPanelIndex = startSlideIndex;
-        slides.ForEach((slide) => slide.GetComponent<CanvasGroup>().alpha = 0);
-        slides[currentPanelIndex].GetComponent<CanvasGroup>().DOFade(1, 0.6f);
+        slides.ForEach((slide) => slide.canvas.GetComponent<CanvasGroup>().alpha = 0);
+        slides.ForEach((slide) => slide.canvas.SetActive(false));
+        slides[currentPanelIndex].canvas.SetActive(true);
+        slides[currentPanelIndex].canvas.GetComponent<CanvasGroup>().DOFade(1, 0.6f);
+        
+        slides.ForEach(slide=> slide.model.transform.localScale = Vector3.zero);
+        slides[currentPanelIndex].model.transform.DOScale(slides[currentPanelIndex].scale, 1).SetEase(Ease.OutElastic);
     }
 
     public void FirstSlide() => ChangeSlide(0);
@@ -66,14 +77,19 @@ public class SlideSequencer : MonoBehaviour
     {
         if (selectedIndex != currentPanelIndex)
         {
+            slides[selectedIndex].canvas.SetActive(true);
             //tween sequence
             var sequence = DOTween.Sequence();
-            sequence.Append(slides[currentPanelIndex].transform.DOScale(0.8f, 0.3f));
-            sequence.Join(slides[currentPanelIndex].GetComponent<CanvasGroup>().DOFade(0, 0.3f));
-            sequence.Append(slides[selectedIndex].transform.DOScale(1, 0.3f).From(0.5f));
-            sequence.Join(slides[selectedIndex].GetComponent<CanvasGroup>().DOFade(1, 0.3f).From(0));
+            
+            sequence.Append(slides[currentPanelIndex].canvas.transform.DOScale(0.8f, 0.3f));
+            sequence.Join(slides[currentPanelIndex].canvas.GetComponent<CanvasGroup>().DOFade(0, 0.3f));
+            sequence.Join(slides[currentPanelIndex].model.transform.DOScale(0, 0.5f));
+            
+            sequence.Append(slides[selectedIndex].canvas.transform.DOScale(1, 0.3f).From(0.5f));
+            sequence.Join(slides[selectedIndex].canvas.GetComponent<CanvasGroup>().DOFade(1, 0.3f).From(0));
+            sequence.Join(slides[selectedIndex].model.transform.DOScale(slides[selectedIndex].scale, 1).SetEase(Ease.OutElastic, 0.01f));
             sequence.Play();
-
+            slides[currentPanelIndex].canvas.SetActive(false);
             currentPanelIndex = selectedIndex;
         }
     }
